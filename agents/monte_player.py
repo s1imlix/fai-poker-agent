@@ -18,9 +18,9 @@ class MonteCarloPlayer(
         self.ai_step = 0.01
         self.md_factor = 0.5
 
-        self.raise_threshold = 0.04 # our threshold, exceeding this means we turn non-aggressive
+        self.raise_threshold = 0.02 # our threshold, exceeding this means we turn non-aggressive
         self.no_give_up_threshold = 0.15
-        self.oppo_raise_threshold = 0.05  # Opponent's raise threshold, exceeding this means they are aggressive
+        self.oppo_raise_threshold = 0.06  # Opponent's raise threshold, exceeding this means they are aggressive
 
     def update_raise_ratio(self, is_winner):
         if is_winner:
@@ -56,7 +56,7 @@ class MonteCarloPlayer(
 
     @property
     def raise_win_rate(self) -> float:
-        return 0.75
+        return 0.7
     
     @property 
     def fold_win_rate(self) -> tuple:
@@ -65,12 +65,15 @@ class MonteCarloPlayer(
         return 0.15, 0.45
          
     @property 
-    def overcommit_call_win_rate(self) -> float:
-        return 0.68
+    def overcommit_win_rate(self) -> float:
+        return self.raise_win_rate + 0.1
 
+    """
     @property
     def overcommit_raise_win_rate(self) -> float:
-        return self.raise_win_rate + 0.05
+        return self.raise_win_rate + 0.1
+    """
+    
 
     def raise_condition(self, must_raise, win_rate) -> bool:
         return (win_rate > self.raise_win_rate and 
@@ -79,10 +82,9 @@ class MonteCarloPlayer(
     def fold_condition(self, round_state, win_rate) -> bool:
         return (round_state["street"] != "preflop" and
                 (
-                    (win_rate <= self.fold_win_rate[0] and self.oppo_raise_ratio > 0) or
-                    (win_rate <= self.fold_win_rate[1] and (self.total_bet < self.diff * 0.5
-                                                        or self.oppo_raise_ratio > self.oppo_raise_threshold)) or
-                    (win_rate <= self.must_raise_rate and self.oppo_raise_ratio > self.oppo_raise_threshold * 5)
+                    (win_rate <= self.fold_win_rate[0]) or
+                    (win_rate <= self.fold_win_rate[1] and self.oppo_raise_ratio > self.oppo_raise_threshold) or
+                    (self.oppo_raise_ratio > self.oppo_raise_threshold * 2 and self.raise_ratio < self.raise_threshold)
                 )
                )
 
@@ -92,7 +94,7 @@ class MonteCarloPlayer(
     def declare_action(self, valid_actions, hole_card, round_state):
 
         if self.safe_round:
-            print("* Safe round detected, folding.")
+            print(">>> Safe round detected, folding.")
             return valid_actions[0]["action"], valid_actions[0]["amount"]
 
         hole_cards = gen_cards(hole_card)
@@ -148,29 +150,34 @@ class MonteCarloPlayer(
         """
         Over-commit detection
         """
-        if (
-            not must_raise and
-            self.remaining_rounds > 1 and
-            new_commit_to_full_ratio > 1 and # we will be raising too much
-            self.raise_ratio < self.no_give_up_threshold # but not to the point we can't give up
-            ):
-            print(f">>> Over-commit detected, new ratio: {new_commit_to_full_ratio:.3f}")
-            
-            if ((action == "raise" and win_rate < self.overcommit_raise_win_rate) or 
-                  (action == "call" and win_rate < self.overcommit_call_win_rate) 
-                 ): 
-                print(f"|--- Win-rate {win_rate:.2f} needs re-evaluation")
-                if (win_rate < self.overcommit_call_win_rate):
-                    if (not self.is_behind or
-                        self.safe_round_check(self.oppo_round_start_stack + new_bet, self.remaining_rounds-1)):
-                        print(f"    |--- win_rate {win_rate:.2f} < call_win_rate and will cause oppo safe round, or we're not losing, fold")
-                        return valid_actions[0]["action"], valid_actions[0]["amount"]
-                elif commit_to_full_ratio < 1: 
-                    call_prob = sigmoid(commit_to_full_ratio, sharpness=20, midpoint=1-win_rate)
-                    print(f"    |--- current {100*commit_to_full_ratio:.2f}% -> Call probability: {call_prob:.2f}")
-                    new_action = self.choose_action(valid_actions, 
-                                                self.choose_with_ratio(["fold", "call"], [1 - call_prob, call_prob]))
-                    action, amount = new_action["action"], new_action["amount"]
+        if (not must_raise and self.remaining_rounds > 1):
+            print(f">>> Over-commit detection: new_commit={new_commit_to_full_ratio:.3f}, commit={commit_to_full_ratio:.3f}, win_rate={win_rate:.2f}")
+            if (commit_to_full_ratio > 1):
+                print("|--- Over-commited")
+                pass
+            elif (new_commit_to_full_ratio > 1 and win_rate < self.overcommit_win_rate):
+                print("|--- Will-over-commit, with win_rate {win_rate:.2f}, re-evaluate")
+                if (not self.is_behind or
+                    self.safe_round_check(self.oppo_round_start_stack + new_bet, self.remaining_rounds - 2)):
+                    print(f"    |--- win_rate {win_rate:.2f} < overcommit_win_rate and will likely oppo safe round, or we're not losing, fold")
+                    return valid_actions[0]["action"], valid_actions[0]["amount"]
+                print(f">>> Will-Over-commit detected, new ratio: {new_commit_to_full_ratio:.3f}, to_full: {commit_to_full_ratio:.3f}")
+                if ((action == "raise" and win_rate < self.overcommit_raise_win_rate) or 
+                    (action == "call" and win_rate < self.overcommit_call_win_rate) or
+                    (action == "call" and win_rate < 0.5 and new_commit_to_full_ratio > 2)
+                    ): 
+                    print(f"|--- Win-rate {win_rate:.2f} needs re-evaluation")
+                    if (win_rate < self.overcommit_win_rate):
+                        if (not self.is_behind or
+                            self.safe_round_check(self.oppo_round_start_stack + new_bet, self.remaining_rounds - 2)):
+                            print(f"    |--- win_rate {win_rate:.2f} < call_win_rate and will likely oppo safe round, or we're not losing, fold")
+                            return valid_actions[0]["action"], valid_actions[0]["amount"]
+                    elif (): 
+                        call_prob = sigmoid(commit_to_full_ratio, sharpness=20, midpoint=1-win_rate)
+                        print(f"    |--- current {100*commit_to_full_ratio:.2f}% -> Call probability: {call_prob:.2f}")
+                        new_action = self.choose_action(valid_actions, 
+                                                    self.choose_with_ratio(["fold", "call"], [1 - call_prob, call_prob]))
+                        action, amount = new_action["action"], new_action["amount"]
             
 
         self.street_bet = amount

@@ -13,7 +13,7 @@ from multiprocessing import Pool
 
 def create_config():
     config = setup_config(max_round=20, initial_stack=1000, small_blind_amount=5)
-    config.register_player(name="p1", algorithm=baseline3_ai())
+    config.register_player(name="p1", algorithm=baseline4_ai())
     config.register_player(name="p2", algorithm=monte_ai())
     return config
 
