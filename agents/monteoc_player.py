@@ -74,8 +74,8 @@ class PureMonteCarloPlayer(
     @property
     def fold_win_rate(self) -> tuple:  
         if self.is_behind:
-            return 0.25
-        return 0.3
+            return 0.1
+        return 0.15
 
     @property
     def bet_ratio(self) -> float:
