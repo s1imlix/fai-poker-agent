@@ -172,12 +172,7 @@ class MonteCarloPlayer(
             self.bet_ratio < self.no_give_up_ratio
         ): 
             print(f"|--- Over-commit detected: new_bet_ratio {new_bet_ratio:.2f} > overcommit_ratio {self.overcommit_ratio:.2f}")
-            if (
-                (win_rate < self.overcommit_win_rate) and # not high enough
-                ((win_rate > self.overcommit_recheck_win_rate and self.oppo_bet_ratio > self.oppo_overcommit_ratio) or
-                 (win_rate < self.overcommit_recheck_win_rate and win_rate > self.fold_win_rate)
-                ) # aggressive opponent or pretty low win rate
-            ):
+            if (self.need_recheck(win_rate)):
                 print(f"|--- Win-rate {win_rate:.2f} < overcommit_win_rate {self.overcommit_win_rate:.2f} or aggresive opponent, re-evaluate")
 
                 if (action == "raise"): 

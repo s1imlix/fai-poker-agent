@@ -33,4 +33,4 @@ def run_parallel_games(n_runs=100):
 
 
 if __name__ == "__main__":
-    run_parallel_games(50)  # Adjust the number of runs as needed
+    run_parallel_games(100)  # Adjust the number of runs as needed
