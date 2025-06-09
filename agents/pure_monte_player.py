@@ -1,5 +1,5 @@
 from game.players import BasePokerPlayer
-from game.engine.hand_evaluator import HandEvaluator
+from agents.hand_evaluator import HandEvaluator
 from agents.card_utils import estimate_hole_card_win_rate, gen_cards, evaluate_hand
 from agents.helper import sigmoid
 import random as rand
@@ -9,7 +9,7 @@ class MonteCarloPlayer(
 ): 
     def __init__(self):
         self.action_ratio = [0, 0.95, 0.05]  # fold, call, raise
-        self.nb_simulation = 20000
+        self.nb_simulation = 1000
 
     def safe_round_check(self, balance, remain):
         return (balance - 1000) > 7.5 * remain

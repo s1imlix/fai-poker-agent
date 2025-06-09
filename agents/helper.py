@@ -78,7 +78,9 @@ def _call(valid_actions):
     return valid_actions[1]["action"], valid_actions[1]["amount"]
 
 def _raise(valid_actions): 
-    return valid_actions[2]["action"], 15 
+    min_raise = valid_actions[2]["amount"]["min"]
+    return valid_actions[2]["action"], max(min_raise, 15)
+
 def _fold(valid_actions):
     return valid_actions[0]["action"], valid_actions[0]["amount"]
 
@@ -88,7 +90,6 @@ def preflop_table_lookup(valid_actions, hole_card, round_state, first_player):
     if street == "preflop":
         position = "SB" if first_player == None else "BB"
         hand_key = _get_hand_key(hole_card)
-        print(position, hand_key)
         if position == "SB":
             if hand_key in open_range:
                 action, amount = _raise(valid_actions)
@@ -99,7 +100,7 @@ def preflop_table_lookup(valid_actions, hole_card, round_state, first_player):
                 action, amount = _call(valid_actions)
             else:
                 action, amount = _fold(valid_actions)
+        print(f"Table: pos={position}, hand={hand_key} -> action={action}, amount={amount}")
     else:
         action, amount = _call(valid_actions)  # postflop: default to call
-    print(f"Table: pos={position}, hand={hand_key} -> action={action}, amount={amount}")
     return action, amount

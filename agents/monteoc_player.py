@@ -10,7 +10,7 @@ class MonteCarloPlayer(
 ): 
     def __init__(self):
         self.action_ratio = [0, 0.95, 0.05]  # fold, call, raise
-        self.nb_simulation = 20000
+        self.nb_simulation = 1000
 
         self.oc_ratio_range = [0.05, 0.1]
 
@@ -86,6 +86,13 @@ class MonteCarloPlayer(
     def oppo_bet_ratio(self) -> float:
         return (self.oppo_total_bet + self.oppo_street_bet) / self.oppo_round_start_stack
 
+    def need_recheck(self, win_rate) -> bool:
+        return (
+                (win_rate < self.overcommit_win_rate) and # not high enough
+                ((win_rate > self.overcommit_recheck_win_rate and self.oppo_bet_ratio > self.oppo_overcommit_ratio) or
+                 (win_rate < self.overcommit_recheck_win_rate and win_rate > self.fold_win_rate)
+                ) # aggressive opponent or pretty low win rate
+            )   
 
     def declare_action(self, valid_actions, hole_card, round_state):
 

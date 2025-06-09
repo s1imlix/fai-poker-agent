@@ -1,7 +1,6 @@
 from functools import reduce
 from itertools import groupby
 
-
 class HandEvaluator:
 
     HIGHCARD = 0

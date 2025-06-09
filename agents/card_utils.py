@@ -2,7 +2,7 @@ import random
 
 from game.engine.card import Card
 from game.engine.deck import Deck
-from hand_evaluator import HandEvaluator
+from agents.hand_evaluator import HandEvaluator
 
 def gen_cards(cards_str):
     return [Card.from_str(s) for s in cards_str]

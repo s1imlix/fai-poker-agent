@@ -1,5 +1,5 @@
 from game.players import BasePokerPlayer
-from game.engine.hand_evaluator import HandEvaluator
+from agents.hand_evaluator import HandEvaluator
 from agents.card_utils import estimate_hole_card_win_rate, gen_cards, evaluate_hand
 from agents.helper import preflop_table_lookup
 import random as rand
@@ -9,7 +9,7 @@ class MonteCarloPlayer(
     BasePokerPlayer
 ): 
     def __init__(self):
-        self.nb_simulation = 20000
+        self.nb_simulation = 1000
 
         self.oc_ratio_range = [0.05, 0.1]
 
@@ -17,6 +17,9 @@ class MonteCarloPlayer(
         # "normal": normal distribution with mean on threshold
         # "fixed": fixed threshold
         self.normal_std = 0.02  # Standard deviation for normal distribution
+
+        self.progress_adjust = False
+        self.progress_adjust_window = 0.03
         
 
     def safe_round_check(self, balance, remain):
@@ -42,7 +45,7 @@ class MonteCarloPlayer(
     @property
     def action_ratio(self) -> tuple: # fold, call, raise
         if self.is_SB:
-            return [0, 0.5, 0.5] # first-hand, raise more
+            return [0, 0.95, 0.05] # first-hand, raise more
         else:
             return [0, 0.95, 0.05]  
 
@@ -55,7 +58,7 @@ class MonteCarloPlayer(
 
     @property
     def no_give_up_ratio(self) -> float:
-        return self.overcommit_ratio * 1.5
+        return self.overcommit_ratio + 0.05
 
     @property
     def max_raise_ratio(self) -> float:
@@ -63,13 +66,16 @@ class MonteCarloPlayer(
 
     @property
     def oppo_overcommit_ratio(self) -> float:
-        return 0.05
+        return self.overcommit_ratio 
 
     @property
     def raise_win_rate(self) -> float:
-        if self.is_behind:
-            return 0.65
-        return 0.7
+        if self.is_SB:
+            p = 0.6
+        else:
+            p = 0.7 
+        return p + self.progress_adjust_window * self.progress if self.progress_adjust else p
+
     
     @property
     def overcommit_win_rate(self) -> float:
@@ -78,8 +84,11 @@ class MonteCarloPlayer(
     @property
     def overcommit_recheck_win_rate(self) -> float:
         if self.is_behind:
-            return 0.55
-        return 0.6
+            p = 0.55 
+        else:
+            p = 0.6
+        return p + self.progress_adjust_window * self.progress if self.progress_adjust else p
+
 
     @property
     def fold_win_rate(self) -> tuple:  
@@ -97,8 +106,16 @@ class MonteCarloPlayer(
 
     @property
     def is_safe_fold(self) -> bool:
-        return ((not self.is_behind and self.total_bet - self.diff < 7.5) or # winning and this bet doesn't exceed our lead, we allow 1-round
+        return self.bet_ratio < self.no_give_up_ratio and ((not self.is_behind and self.total_bet - self.diff < 7.5) or # winning and this bet doesn't exceed our lead, we allow 1-round
                 not self.safe_round_check(self.oppo_round_start_stack + self.total_bet, self.remaining_rounds - 1)) # losing but no safe round
+
+    def need_recheck(self, win_rate) -> bool:
+        return (
+                (win_rate < self.overcommit_win_rate) and # not high enough
+                ((win_rate > self.overcommit_recheck_win_rate and self.oppo_bet_ratio > self.oppo_overcommit_ratio) or
+                 (win_rate < self.overcommit_recheck_win_rate and win_rate > self.fold_win_rate)
+                ) # aggressive opponent or pretty low win rate
+            )   
 
     def declare_action(self, valid_actions, hole_card, round_state):
 
@@ -106,13 +123,7 @@ class MonteCarloPlayer(
             print(">>> Safe round detected, folding.")
             return valid_actions[0]["action"], valid_actions[0]["amount"]
 
-        if round_state["street"] == "preflop":
-            # Preflop logic, use direct player for preflop decision
-            action, amount = preflop_table_lookup(valid_actions, hole_card, round_state, self.first_player)
-            self.street_bet = amount
-            return action, amount
         
-
         hole_cards = gen_cards(hole_card)
         community_cards = gen_cards(round_state["community_card"])
 
@@ -161,6 +172,13 @@ class MonteCarloPlayer(
                 scaled_win_rate = win_rate ** exponent 
                 amount = amount["min"] + scaled_win_rate * (max_allowed - amount["min"])
 
+        '''
+        if round_state["street"] == "preflop":
+            # Preflop logic, use direct player for preflop decision
+            action, amount = preflop_table_lookup(valid_actions, hole_card, round_state, self.first_player)
+        '''
+        
+
         print(f">>> Action chosen: {action}, amount: {amount}")
 
         new_bet = self.total_bet + amount
@@ -171,18 +189,11 @@ class MonteCarloPlayer(
         """
         if (
             self.remaining_rounds > 1 and
-            new_bet_ratio > self.overcommit_ratio and
-            self.bet_ratio < self.no_give_up_ratio
+            new_bet_ratio > self.overcommit_ratio 
         ): 
             print(f"|--- Over-commit detected: new_bet_ratio {new_bet_ratio:.2f} > overcommit_ratio {self.overcommit_ratio:.2f}")
-            if (
-                (win_rate < self.overcommit_win_rate) and # not high enough
-                ((win_rate > self.overcommit_recheck_win_rate and self.oppo_bet_ratio > self.oppo_overcommit_ratio) or
-                 (win_rate < self.overcommit_recheck_win_rate and win_rate > self.fold_win_rate)
-                ) # aggressive opponent or pretty low win rate
-            ):
-                print(f"|--- Win-rate {win_rate:.2f} < overcommit_win_rate {self.overcommit_win_rate:.2f} or aggresive opponent, re-evaluate")
-
+            if (self.need_recheck(win_rate)):
+                print(f"|--- Win-rate {win_rate:.2f} < overcommit_win_rate {self.overcommit_win_rate:.2f} or aggresive opponent, re-check")
                 if (action == "raise"): 
                     if (self.is_safe_fold):
                         print(f"    |--- win_rate {win_rate:.2f} < call_win_rate and will cause oppo safe round, or we're not losing (bet: {self.total_bet:.2f} < diff: {self.diff:.2f}), fold")

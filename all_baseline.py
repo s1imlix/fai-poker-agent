@@ -1,8 +1,8 @@
 import json
 from game.game import setup_config, start_poker
-from agents.random_player import setup_ai as random_ai
 from agents.monteoc_player import setup_ai as monteoc_ai
 from agents.direct_player import setup_ai as direct_ai
+from agents.pure_monte_player import setup_ai as pure_monte_ai
 from baseline0 import setup_ai as baseline0_ai
 from baseline1 import setup_ai as baseline1_ai
 from baseline2 import setup_ai as baseline2_ai
@@ -18,7 +18,7 @@ output = []
 def create_config(index):
     config = setup_config(max_round=20, initial_stack=1000, small_blind_amount=5)
     config.register_player(name="p1", algorithm=all_ais[index]())
-    config.register_player(name="p2", algorithm=direct_ai())
+    config.register_player(name="p2", algorithm=pure_monte_ai())
     return config
 
 def play_game(index):
@@ -36,9 +36,6 @@ def run_parallel_games_for_ai(ai_index, n_runs=100):
     output.append(f"AI {ai_index+1}: Player 2: {p2_wins}/{n_runs} wins ({(p2_wins / n_runs) * 100:.2f}%)")
 
 def run_all_ais(n_runs=100):
-    print(f"Testing each AI for {n_runs} games against direct_ai()")
-    print("=" * 60)
-    
     global output
     for i, ai_class in enumerate(all_ais):
         run_parallel_games_for_ai(i, n_runs)

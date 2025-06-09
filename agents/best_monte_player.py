@@ -1,5 +1,5 @@
 from game.players import BasePokerPlayer
-from game.engine.hand_evaluator import HandEvaluator
+from agents.hand_evaluator import HandEvaluator
 from agents.card_utils import estimate_hole_card_win_rate, gen_cards, evaluate_hand
 from agents.helper import sigmoid
 import random as rand
