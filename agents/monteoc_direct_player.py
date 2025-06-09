@@ -5,11 +5,10 @@ from agents.helper import preflop_table_lookup
 import random as rand
 import numpy as np
 
-class PureMonteCarloPlayer(
+class MonteCarloPlayer(
     BasePokerPlayer
 ): 
     def __init__(self):
-        self.action_ratio = [0, 0.95, 0.05]  # fold, call, raise
         self.nb_simulation = 20000
 
         self.oc_ratio_range = [0.05, 0.1]
@@ -35,7 +34,17 @@ class PureMonteCarloPlayer(
             weights=ratios,
             k=1
         )[0]  # Return a single action based on the given ratios
-    
+
+    @property
+    def is_SB(self) -> bool:
+        return self.first_player is None or self.first_player == self.uuid
+
+    @property
+    def action_ratio(self) -> tuple: # fold, call, raise
+        if self.is_SB:
+            return [0, 0.5, 0.5] # first-hand, raise more
+        else:
+            return [0, 0.95, 0.05]  
 
     @property
     def overcommit_ratio(self) -> float:
@@ -46,7 +55,7 @@ class PureMonteCarloPlayer(
 
     @property
     def no_give_up_ratio(self) -> float:
-        return self.overcommit_ratio * 2
+        return self.overcommit_ratio * 1.5
 
     @property
     def max_raise_ratio(self) -> float:
@@ -86,6 +95,10 @@ class PureMonteCarloPlayer(
     def oppo_bet_ratio(self) -> float:
         return (self.oppo_total_bet + self.oppo_street_bet) / self.oppo_round_start_stack
 
+    @property
+    def is_safe_fold(self) -> bool:
+        return ((not self.is_behind and self.total_bet - self.diff < 7.5) or # winning and this bet doesn't exceed our lead, we allow 1-round
+                not self.safe_round_check(self.oppo_round_start_stack + self.total_bet, self.remaining_rounds - 1)) # losing but no safe round
 
     def declare_action(self, valid_actions, hole_card, round_state):
 
@@ -95,7 +108,10 @@ class PureMonteCarloPlayer(
 
         if round_state["street"] == "preflop":
             # Preflop logic, use direct player for preflop decision
-            return preflop_table_lookup(valid_actions, hole_card, round_state, self.first_player)
+            action, amount = preflop_table_lookup(valid_actions, hole_card, round_state, self.first_player)
+            self.street_bet = amount
+            return action, amount
+        
 
         hole_cards = gen_cards(hole_card)
         community_cards = gen_cards(round_state["community_card"])
@@ -138,14 +154,14 @@ class PureMonteCarloPlayer(
                 action, amount = valid_actions[1]["action"], valid_actions[1]["amount"]
             else:
                 self.have_raised = True
-                max_allowed = self.max_raise_ratio * amount["max"]
+                max_allowed = max(self.max_raise_ratio * amount["max"], amount["min"])
                 
                 # Exponential scaling curve
                 exponent = 10 
                 scaled_win_rate = win_rate ** exponent 
                 amount = amount["min"] + scaled_win_rate * (max_allowed - amount["min"])
 
-
+        print(f">>> Action chosen: {action}, amount: {amount}")
 
         new_bet = self.total_bet + amount
         new_bet_ratio = (new_bet / self.round_start_stack)
@@ -168,25 +184,18 @@ class PureMonteCarloPlayer(
                 print(f"|--- Win-rate {win_rate:.2f} < overcommit_win_rate {self.overcommit_win_rate:.2f} or aggresive opponent, re-evaluate")
 
                 if (action == "raise"): 
-                    if ((not self.is_behind and self.diff > self.total_bet) or
-                        not self.safe_round_check(self.oppo_round_start_stack + self.total_bet, self.remaining_rounds - 1)):
+                    if (self.is_safe_fold):
                         print(f"    |--- win_rate {win_rate:.2f} < call_win_rate and will cause oppo safe round, or we're not losing (bet: {self.total_bet:.2f} < diff: {self.diff:.2f}), fold")
                         return valid_actions[0]["action"], valid_actions[0]["amount"]
                     else:
                         return valid_actions[1]["action"], valid_actions[1]["amount"]
-                elif (self.oppo_bet_ratio > self.oppo_overcommit_ratio and
-                      not self.safe_round_check(self.oppo_round_start_stack + self.total_bet, self.remaining_rounds - 1)):
+                elif (self.oppo_bet_ratio > self.oppo_overcommit_ratio and self.is_safe_fold):
                     print(f"    |--- calling on aggressive opponent, fold")
                     return valid_actions[0]["action"], valid_actions[0]["amount"]
 
         """
         Edge cases
         """
-
-        # last round still behind or very poor-> all-in
-        if (self.remaining_rounds == 1 and self.is_behind) or self.oppo_round_start_stack < 500:
-            action = "raise"
-            amount = valid_actions[2]["amount"]["max"] / 2
 
         print(f">>> Final action: {action}, amount: {amount}")
         expected_val = (self.oppo_total_bet + self.oppo_street_bet) * win_rate - (self.total_bet + self.street_bet) * (1 - win_rate) if action != "fold" else - (self.total_bet + self.street_bet)
@@ -236,7 +245,6 @@ class PureMonteCarloPlayer(
     def receive_game_update_message(self, action, round_state):
         if self.first_player is None:
             self.first_player = action["player_uuid"]
-            
         if action["player_uuid"] != self.uuid and (action["action"] == "raise" or action["action"] == "call"):
             self.oppo_street_bet = action["amount"]
 
@@ -244,4 +252,4 @@ class PureMonteCarloPlayer(
         pass
 
 def setup_ai():
-    return PureMonteCarloPlayer()
+    return MonteCarloPlayer()

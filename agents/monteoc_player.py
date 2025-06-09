@@ -1,10 +1,11 @@
 from game.players import BasePokerPlayer
 from game.engine.hand_evaluator import HandEvaluator
 from agents.card_utils import estimate_hole_card_win_rate, gen_cards, evaluate_hand
+from agents.helper import preflop_table_lookup
 import random as rand
 import numpy as np
 
-class PureMonteCarloPlayer(
+class MonteCarloPlayer(
     BasePokerPlayer
 ): 
     def __init__(self):
@@ -91,6 +92,16 @@ class PureMonteCarloPlayer(
         if self.safe_round:
             print(">>> Safe round detected, folding.")
             return valid_actions[0]["action"], valid_actions[0]["amount"]
+
+        '''
+        if round_state["street"] == "preflop":
+            # Preflop logic, use direct player for preflop decision
+            action, amount = preflop_table_lookup(valid_actions, hole_card, round_state, self.first_player)
+            self.street_bet = amount
+            return action, amount
+        '''
+        
+        
 
         hole_cards = gen_cards(hole_card)
         community_cards = gen_cards(round_state["community_card"])
@@ -220,6 +231,8 @@ class PureMonteCarloPlayer(
         self.street_bet = 0
         self.oppo_street_bet = 0
 
+        self.first_player = None
+
     def receive_street_start_message(self, street, round_state):
         self.total_bet += self.street_bet 
         self.oppo_total_bet += self.oppo_street_bet
@@ -227,6 +240,8 @@ class PureMonteCarloPlayer(
         self.oppo_street_bet = 0
 
     def receive_game_update_message(self, action, round_state):
+        if self.first_player is None:
+            self.first_player = action["player_uuid"]
         if action["player_uuid"] != self.uuid and (action["action"] == "raise" or action["action"] == "call"):
             self.oppo_street_bet = action["amount"]
 
@@ -234,4 +249,4 @@ class PureMonteCarloPlayer(
         pass
 
 def setup_ai():
-    return PureMonteCarloPlayer()
+    return MonteCarloPlayer()

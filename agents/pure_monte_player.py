@@ -4,7 +4,7 @@ from agents.card_utils import estimate_hole_card_win_rate, gen_cards, evaluate_h
 from agents.helper import sigmoid
 import random as rand
 
-class PureMonteCarloPlayer(
+class MonteCarloPlayer(
     BasePokerPlayer
 ): 
     def __init__(self):
@@ -116,4 +116,4 @@ class PureMonteCarloPlayer(
         pass
 
 def setup_ai():
-    return PureMonteCarloPlayer()
+    return MonteCarloPlayer()

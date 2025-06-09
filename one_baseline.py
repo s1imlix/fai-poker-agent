@@ -2,6 +2,8 @@ import json
 from game.game import setup_config, start_poker
 from agents.random_player import setup_ai as random_ai
 from agents.monteoc_player import setup_ai as monteoc_ai
+from agents.monteoc_direct_player import setup_ai as monteoc_direct_ai
+from agents.direct_player import setup_ai as direct_ai
 from baseline0 import setup_ai as baseline0_ai
 from baseline4 import setup_ai as baseline4_ai
 from baseline3 import setup_ai as baseline3_ai
@@ -11,8 +13,8 @@ from multiprocessing import Pool
 
 def create_config():
     config = setup_config(max_round=20, initial_stack=1000, small_blind_amount=5)
-    config.register_player(name="p1", algorithm=baseline5_ai())
-    config.register_player(name="p2", algorithm=monteoc_ai())
+    config.register_player(name="p1", algorithm=baseline6_ai())
+    config.register_player(name="p2", algorithm=direct_ai())
     return config
 
 def play_game(_):
@@ -31,4 +33,4 @@ def run_parallel_games(n_runs=100):
 
 
 if __name__ == "__main__":
-    run_parallel_games(50)  # Adjust the number of runs as needed
+    run_parallel_games(100)  # Adjust the number of runs as needed
