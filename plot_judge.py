@@ -11,7 +11,7 @@ from baseline4 import setup_ai as baseline4_ai
 from baseline5 import setup_ai as baseline5_ai
 from baseline6 import setup_ai as baseline6_ai
 from baseline7 import setup_ai as baseline7_ai
-from agents.monteoc_player import setup_ai as player_ai
+from agents.monteoc_direct_player import setup_ai as player_ai
 
 from multiprocessing import Pool, cpu_count
 
@@ -124,7 +124,7 @@ def run_multiple_mains(n_runs=10):
     plt.tight_layout()
     plt.suptitle("Baseline AI Score Histograms", y=1.02, fontsize=14)
     plt.subplots_adjust(top=0.95)
-    plt.savefig("baseline_scores_distribution.png")
+    plt.savefig("baseline_scores_distribution_direct.png")
 
     # Plotting total scores
     plt.figure(figsize=(8, 4))
@@ -140,7 +140,7 @@ def run_multiple_mains(n_runs=10):
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig("total_scores_distribution.png")
+    plt.savefig("total_scores_distribution_direct.png")
 
 
 

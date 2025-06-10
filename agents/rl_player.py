@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import numpy as np
-import random
+import random as rand
 from collections import deque, namedtuple
 from game.players import BasePokerPlayer
 from agents.card_utils import evaluate_hand, gen_cards, estimate_hole_card_win_rate
@@ -43,14 +43,16 @@ class D3QNPokerPlayer(BasePokerPlayer):
         self.state_dim = 6
         self.action_dim = 3  # fold, call, raise
         self.gamma = 0.99
-        self.epsilon = 0.1
+        self.epsilon = 0.5
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.5
         self.lr = 0.0001
         self.batch_size = 200
         self.memory_size = 5000
         self.target_update = 50
-        self.max_raise_ratio = 0.1
+        self.raise_ratio_range = [0.01, 0.2]
+        self.raise_win_rate = 0.8  # SB raise win rate
+        self.fold_win_rate = 0.1  # SB fold win rate
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.policy_net = DuelingDQN(self.state_dim, self.action_dim).to(self.device)
@@ -62,19 +64,33 @@ class D3QNPokerPlayer(BasePokerPlayer):
         self.last_state = None
         self.last_action = None
 
+    @property
+    def max_raise_ratio(self):
+        return self.raise_ratio_range[0] + self.progress * (self.raise_ratio_range[1] - self.raise_ratio_range[0])
+
+    def choose_action(self, valid_actions, action_type):
+        for choice in valid_actions:
+            if choice["action"] == action_type:
+                return choice 
+        return valid_actions[0]  # Default to fold if no valid action found
+
     def declare_action(self, valid_actions, hole_card, round_state):
         state = self._extract_state(round_state, hole_card)
-        print(state)
+        win_rate = state[0]
         if np.random.rand() < self.epsilon:
-            # Exploration: Random action with dynamic raise sizing
-            action_idx = np.random.randint(len(valid_actions))
-            action_info = valid_actions[action_idx]
+            # Exploration: Monte-Carlo action with dynamic raise sizing
+            if (win_rate >= self.raise_win_rate):
+                action_idx = 2
+                action_info = self.choose_action(valid_actions, "raise")
+            elif (win_rate <= self.fold_win_rate):
+                action_idx = 0
+                action_info = self.choose_action(valid_actions, "fold")
+            else:
+                action_idx = 1
+                action_info = self.choose_action(valid_actions, "call")
             
             if action_info["action"] == "raise":
-                # Random raise between min and max
-                min_raise = action_info["amount"]["min"]
-                max_raise = max(action_info["amount"]["max"] * self.max_raise_ratio, min_raise)
-                amount = np.random.uniform(min_raise, max_raise)
+                amount = action_info["amount"]["min"] # min raise
             else:
                 amount = action_info["amount"]
         else:
@@ -88,12 +104,12 @@ class D3QNPokerPlayer(BasePokerPlayer):
                 for i, action in enumerate(valid_actions):
                     valid_q[i] = q_values[i]
                 
+                print(valid_q)
                 action_idx = np.argmax(valid_q)
                 action_info = valid_actions[action_idx]
                 
                 if action_info["action"] == "raise":
-                    # Calculate raise amount based on confidence
-                    win_rate = state[0]
+                    # Calculate raise amount based on confidence 
                     min_raise = action_info["amount"]["min"]
                     max_raise = max(action_info["amount"]["max"] * self.max_raise_ratio, min_raise)
                     exp_winrate = win_rate ** 10
@@ -107,11 +123,9 @@ class D3QNPokerPlayer(BasePokerPlayer):
         return action_info["action"], amount
 
     def receive_round_result_message(self, winners, hand_info, round_state):
-        # Heads-up: only two players, reward is win/loss
         if self.last_state is None or self.last_action is None:
             return
-        #my_uuid = getattr(self, 'uuid', None)
-        #reward = 1.0 if any(w.get('uuid') == my_uuid for w in winners) else -1.0
+
         reward = 1.0 if any(winner["uuid"] == self.uuid for winner in winners) else -1.0
         next_state = np.zeros(self.state_dim, dtype=np.float32)
         self.memory.append(Experience(self.last_state, self.last_action, reward, next_state, True))
@@ -138,7 +152,7 @@ class D3QNPokerPlayer(BasePokerPlayer):
     def _train(self):
         if len(self.memory) < self.batch_size:
             return
-        batch = random.sample(self.memory, self.batch_size)
+        batch = rand.sample(self.memory, self.batch_size)
         states, actions, rewards, next_states, dones = zip(*batch)
         states = torch.FloatTensor(np.array(states)).to(self.device)
         actions = torch.LongTensor(actions).to(self.device)
@@ -162,7 +176,8 @@ class D3QNPokerPlayer(BasePokerPlayer):
             self.epsilon *= self.epsilon_decay
 
     def receive_game_start_message(self, game_info):
-        pass
+        self.total_rounds = game_info["rule"]["max_round"]
+
     def receive_round_start_message(self, round_count, hole_card, seats):
         for player in seats:
             if player["uuid"] == self.uuid:
@@ -171,6 +186,8 @@ class D3QNPokerPlayer(BasePokerPlayer):
                 self.opp_stack = player["stack"] / 1000.0
 
         self.first_player = None
+        self.remaining_rounds = self.total_rounds - round_count + 1
+        self.progress = self.remaining_rounds / self.total_rounds
 
     def receive_street_start_message(self, street, round_state):
         pass
