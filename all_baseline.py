@@ -1,5 +1,6 @@
 import json
 from game.game import setup_config, start_poker
+from agents.monteoc_direct_player import setup_ai as monteoc_direct_ai
 from agents.monteoc_player import setup_ai as monteoc_ai
 from agents.direct_player import setup_ai as direct_ai
 from agents.pure_monte_player import setup_ai as pure_monte_ai
@@ -19,7 +20,7 @@ output = []
 def create_config(index):
     config = setup_config(max_round=20, initial_stack=1000, small_blind_amount=5)
     config.register_player(name="p1", algorithm=all_ais[index]())
-    config.register_player(name="p2", algorithm=rl_ai())
+    config.register_player(name="p2", algorithm=monteoc_ai())
     return config
 
 def play_game(index):

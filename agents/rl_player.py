@@ -43,7 +43,7 @@ class D3QNPokerPlayer(BasePokerPlayer):
         self.state_dim = 6
         self.action_dim = 3  # fold, call, raise
         self.gamma = 0.99
-        self.epsilon = 0.9
+        self.epsilon = 0.1
         self.epsilon_min = 0.01
         self.epsilon_decay = 0.5
         self.lr = 0.0001
@@ -165,9 +165,9 @@ class D3QNPokerPlayer(BasePokerPlayer):
     def receive_round_start_message(self, round_count, hole_card, seats):
         for player in seats:
             if player["uuid"] == self.uuid:
-                self.my_stack = player["stack"]
+                self.my_stack = player["stack"] / 1000.0
             else:
-                self.opp_stack = player["stack"]
+                self.opp_stack = player["stack"] / 1000.0
 
         self.first_player = None
 

@@ -11,7 +11,7 @@ from baseline4 import setup_ai as baseline4_ai
 from baseline5 import setup_ai as baseline5_ai
 from baseline6 import setup_ai as baseline6_ai
 from baseline7 import setup_ai as baseline7_ai
-from agents.monteoc_direct_player import setup_ai as player_ai
+from agents.monteoc_player import setup_ai as player_ai
 
 from multiprocessing import Pool, cpu_count
 

@@ -14,8 +14,9 @@ from multiprocessing import Pool
 
 def create_config():
     config = setup_config(max_round=20, initial_stack=1000, small_blind_amount=5)
-    config.register_player(name="p1", algorithm=baseline1_ai())
-    config.register_player(name="p2", algorithm=monteoc_direct_ai())
+    config.register_player(name="p1", algorithm=baseline5_ai())
+    config.register_player(name="p2", algorithm=rl_ai())
+    return config
 
 def play_game(_):
     config = create_config()
