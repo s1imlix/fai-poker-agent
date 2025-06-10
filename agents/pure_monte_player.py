@@ -36,8 +36,8 @@ class MonteCarloPlayer(
     @property
     def fold_win_rate(self) -> tuple:  
         if self.is_behind:
-            return 0.35 
-        return 0.4
+            return 0.1
+        return 0.15
     
 
     def declare_action(self, valid_actions, hole_card, round_state):

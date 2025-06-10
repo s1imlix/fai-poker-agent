@@ -19,7 +19,7 @@ class MonteCarloPlayer(
         self.normal_std = 0.02  # Standard deviation for normal distribution
 
         self.progress_adjust = False
-        self.progress_adjust_window = 0.03
+        self.progress_adjust_window = 0.05
         
 
     def safe_round_check(self, balance, remain):
@@ -71,7 +71,7 @@ class MonteCarloPlayer(
     @property
     def raise_win_rate(self) -> float:
         if self.is_SB:
-            p = 0.6
+            p = 0.65
         else:
             p = 0.7 
         return p + self.progress_adjust_window * self.progress if self.progress_adjust else p
@@ -87,7 +87,7 @@ class MonteCarloPlayer(
             p = 0.55 
         else:
             p = 0.6
-        return p + self.progress_adjust_window * self.progress if self.progress_adjust else p
+        return p - self.progress_adjust_window * self.progress if self.progress_adjust else p
 
 
     @property
@@ -106,7 +106,7 @@ class MonteCarloPlayer(
 
     @property
     def is_safe_fold(self) -> bool:
-        return self.bet_ratio < self.no_give_up_ratio and ((not self.is_behind and self.total_bet - self.diff < 7.5) or # winning and this bet doesn't exceed our lead, we allow 1-round
+        return self.bet_ratio < self.no_give_up_ratio and ((not self.is_behind and self.total_bet - self.diff < 5) or # winning and this bet doesn't exceed our lead, we allow 1-round
                 not self.safe_round_check(self.oppo_round_start_stack + self.total_bet, self.remaining_rounds - 1)) # losing but no safe round
 
     def need_recheck(self, win_rate) -> bool:
@@ -166,17 +166,15 @@ class MonteCarloPlayer(
             else:
                 self.have_raised = True
                 max_allowed = max(self.max_raise_ratio * amount["max"], amount["min"])
-                
                 # Exponential scaling curve
                 exponent = 10 
                 scaled_win_rate = win_rate ** exponent 
                 amount = amount["min"] + scaled_win_rate * (max_allowed - amount["min"])
 
-        '''
+        
         if round_state["street"] == "preflop":
             # Preflop logic, use direct player for preflop decision
             action, amount = preflop_table_lookup(valid_actions, hole_card, round_state, self.first_player)
-        '''
         
 
         print(f">>> Action chosen: {action}, amount: {amount}")

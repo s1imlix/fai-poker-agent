@@ -3,6 +3,7 @@ from game.game import setup_config, start_poker
 from agents.monteoc_player import setup_ai as monteoc_ai
 from agents.monteoc_direct_player import setup_ai as monteoc_direct_ai
 from agents.direct_player import setup_ai as direct_ai
+from agents.rl_player import setup_ai as rl_ai
 from baseline0 import setup_ai as baseline0_ai
 from baseline1 import setup_ai as baseline1_ai
 from baseline4 import setup_ai as baseline4_ai
@@ -13,9 +14,8 @@ from multiprocessing import Pool
 
 def create_config():
     config = setup_config(max_round=20, initial_stack=1000, small_blind_amount=5)
-    config.register_player(name="p1", algorithm=baseline5_ai())
-    config.register_player(name="p2", algorithm=monteoc_ai())
-    return config
+    config.register_player(name="p1", algorithm=baseline1_ai())
+    config.register_player(name="p2", algorithm=monteoc_direct_ai())
 
 def play_game(_):
     config = create_config()

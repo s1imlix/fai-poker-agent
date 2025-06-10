@@ -3,6 +3,12 @@ import numpy as np
 def sigmoid(x, sharpness=5, midpoint=0.5):
     return 1 / (1 + np.exp(-sharpness * (x - midpoint)))
 
+street_to_id = {
+    "preflop": 0,
+    "flop": 1,
+    "turn": 2,
+    "river": 3,
+}
 
 open_range = {
     # Pocket pairs
