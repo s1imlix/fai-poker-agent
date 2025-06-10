@@ -110,8 +110,9 @@ class D3QNPokerPlayer(BasePokerPlayer):
         # Heads-up: only two players, reward is win/loss
         if self.last_state is None or self.last_action is None:
             return
-        my_uuid = getattr(self, 'uuid', None)
-        reward = 1.0 if any(w.get('uuid') == my_uuid for w in winners) else -1.0
+        #my_uuid = getattr(self, 'uuid', None)
+        #reward = 1.0 if any(w.get('uuid') == my_uuid for w in winners) else -1.0
+        reward = 1.0 if any(winner["uuid"] == self.uuid for winner in winners) else -1.0
         next_state = np.zeros(self.state_dim, dtype=np.float32)
         self.memory.append(Experience(self.last_state, self.last_action, reward, next_state, True))
         self._train()
