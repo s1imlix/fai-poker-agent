@@ -15,7 +15,7 @@ from agents.rl_player import setup_ai as rl_ai
 
 config = setup_config(max_round=20, initial_stack=1000, small_blind_amount=5)
 config.register_player(name="p1", algorithm=baseline5_ai())
-config.register_player(name="p2", algorithm=rl_ai())
+config.register_player(name="p2", algorithm=monteoc_ai())
 
 ## Play in interactive mode if uncomment
 #config.register_player(name="me", algorithm=console_ai())
