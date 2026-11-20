@@ -5,6 +5,7 @@ __pycache__/
 
 # C extensions
 *.so
+!baseline*.so
 
 # Distribution / packaging
 .Python
@@ -86,4 +87,4 @@ ENV/
 # Images, logs, outputs (optional — adjust as needed)
 *.log
 *.png
-*.pdf
+# *.pdf
